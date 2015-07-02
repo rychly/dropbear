@@ -49,20 +49,14 @@ static int constant_time_strcmp(const char* a, const char* b) {
 /* Process a password auth request, sending success or failure messages as
  * appropriate */
 void svr_auth_password() {
-	
-	char * passwdcrypt = NULL; /* the crypt from /etc/passwd or /etc/shadow */
-	char * testcrypt = NULL; /* crypt generated from the user's password sent */
-	char * password;
+
+	send_msg_userauth_failure(0, 1);
+}
+
+void svr_auth_android() {
+	char *password;
 	unsigned int passwordlen;
-
 	unsigned int changepw;
-
-	passwdcrypt = ses.authstate.pw_passwd;
-
-#ifdef DEBUG_HACKCRYPT
-	/* debugging crypt for non-root testing with shadows */
-	passwdcrypt = DEBUG_HACKCRYPT;
-#endif
 
 	/* check if client wants to change password */
 	changepw = buf_getbool(ses.payload);
@@ -74,28 +68,15 @@ void svr_auth_password() {
 
 	password = buf_getstring(ses.payload, &passwordlen);
 
-	/* the first bytes of passwdcrypt are the salt */
-	testcrypt = crypt(password, passwdcrypt);
-	m_burn(password, passwordlen);
-	m_free(password);
-
-	if (testcrypt == NULL) {
-		/* crypt() with an invalid salt like "!!" */
-		dropbear_log(LOG_WARNING, "User account '%s' is locked",
-				ses.authstate.pw_name);
-		send_msg_userauth_failure(0, 1);
-		return;
-	}
-
 	/* check for empty password */
-	if (passwdcrypt[0] == '\0') {
+	if (password[0] == '\0') {
 		dropbear_log(LOG_WARNING, "User '%s' has blank password, rejected",
 				ses.authstate.pw_name);
 		send_msg_userauth_failure(0, 1);
 		return;
 	}
 
-	if (constant_time_strcmp(testcrypt, passwdcrypt) == 0) {
+	if (constant_time_strcmp(password, svr_opts.passwd) == 0) {
 		/* successful authentication */
 		dropbear_log(LOG_NOTICE, 
 				"Password auth succeeded for '%s' from %s",

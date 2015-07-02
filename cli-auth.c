@@ -32,6 +32,17 @@
 #include "packet.h"
 #include "runopts.h"
 
+#include <unistd.h>
+#include <stdio.h>
+#include <termios.h>
+#include <stdbool.h>
+
+#define __fsetlocking(stream, type)
+#define fflush_unlocked(x) fflush (x)
+#define fputs_unlocked(str,stream) fputs (str, stream)
+
+#define TCSASOFT 0
+
 void cli_authinitialise() {
 
 	memset(&ses.authstate, 0, sizeof(ses.authstate));
@@ -349,3 +360,82 @@ char* getpass_or_cancel(char* prompt)
 	return password;
 }
 #endif
+
+char *getpass(const char *prompt)
+{
+	FILE *tty;
+	FILE *in, *out;
+	struct termios t;
+	bool tty_changed = false;
+	static char *buf;
+	static size_t bufsize;
+	ssize_t nread;
+
+	/* Try to write to and read from the terminal if we can.
+	   If we can't open the terminal, use stderr and stdin.  */
+
+	tty = fopen("/dev/tty", "w+");
+	if (tty == NULL) {
+		in = stdin;
+		out = stderr;
+	} else {
+		/* We do the locking ourselves.  */
+		__fsetlocking(tty, FSETLOCKING_BYCALLER);
+
+		out = in = tty;
+	}
+
+	flockfile(out);
+
+	/* Turn echoing off if it is on now.  */
+	if (tcgetattr(fileno (in), &t) == 0) {
+		/* Tricky, tricky. */
+		t.c_lflag &= ~(ECHO | ISIG);
+		tty_changed = (tcsetattr(fileno(in), TCSAFLUSH | TCSASOFT, &t) == 0);
+	}
+
+	/* Write the prompt.  */
+	fputs_unlocked(prompt, out);
+	fflush_unlocked(out);
+
+	/* Read the password.  */
+	nread = getline(&buf, &bufsize, in);
+
+	/* According to the C standard, input may not be followed by output
+	   on the same stream without an intervening call to a file
+	   positioning function.  Suppose in == out; then without this fseek
+	   call, on Solaris, HP-UX, AIX, OSF/1, the previous input gets
+	   echoed, whereas on IRIX, the following newline is not output as
+	   it should be.  POSIX imposes similar restrictions if fileno (in)
+	   == fileno (out).  The POSIX restrictions are tricky and change
+	   from POSIX version to POSIX version, so play it safe and invoke
+	   fseek even if in != out.  */
+	fseeko(out, 0, SEEK_CUR);
+
+	if (buf != NULL) {
+		if (nread < 0)
+			buf[0] = '\0';
+		else if (buf[nread - 1] == '\n') {
+			/* Remove the newline.  */
+			buf[nread - 1] = '\0';
+			if (tty_changed) {
+				/* Write the newline that was not echoed.  */
+				putc_unlocked('\n', out);
+			}
+		}
+	}
+
+	/* Restore the original setting.  */
+	if (tty_changed) {
+		t.c_lflag |= ECHO;
+		t.c_lflag |= ISIG;
+		tcsetattr(fileno (in), TCSAFLUSH | TCSASOFT, &t);
+	}
+
+	funlockfile(out);
+
+	if (tty != NULL)
+		fclose(tty);
+
+	return buf;
+}

@@ -41,6 +41,12 @@ static void printhelp(const char * progname) {
 
 	fprintf(stderr, "Dropbear server v%s https://matt.ucc.asn.au/dropbear/dropbear.html\n"
 					"Usage: %s [options]\n"
+					"-A		Android Mode, specify a user explicitly\n"
+					"-N username	Android Mode, user name\n"
+					"-C password	Android Mode, password\n"
+					"-R authkeys	Android Mode, public key file (authorized_keys)\n"
+					"-U uid		Android Mode, UID\n"
+					"-G gid		Android Mode, GID\n"
 					"-b bannerfile	Display the contents of bannerfile"
 					" before user login\n"
 					"		(default: none)\n"
@@ -55,9 +61,11 @@ static void printhelp(const char * progname) {
 #ifdef DROPBEAR_ECDSA
 					"		ecdsa %s\n"
 #endif
+/*
 #ifdef DROPBEAR_DELAY_HOSTKEY
 					"-R		Create hostkeys as required\n" 
 #endif
+*/
 					"-F		Don't fork into background\n"
 #ifdef DISABLE_SYSLOG
 					"(Syslog support not compiled in, using stderr)\n"
@@ -115,6 +123,7 @@ void svr_getopts(int argc, char ** argv) {
 	unsigned int i, j;
 	char ** next = 0;
 	int nextisport = 0;
+	int nextisint = 0;
 	char* recv_window_arg = NULL;
 	char* keepalive_arg = NULL;
 	char* idle_timeout_arg = NULL;
@@ -135,6 +144,12 @@ void svr_getopts(int argc, char ** argv) {
 	svr_opts.hostkey = NULL;
 	svr_opts.delay_hostkey = 0;
 	svr_opts.pidfile = DROPBEAR_PIDFILE;
+	svr_opts.android_mode = 0;
+	svr_opts.user_name = NULL;
+	svr_opts.passwd = NULL;
+	svr_opts.authkey = NULL;
+	svr_opts.uid = 0;
+	svr_opts.gid = 0;
 #ifdef ENABLE_SVR_LOCALTCPFWD
 	svr_opts.nolocaltcp = 0;
 #endif
@@ -172,8 +187,28 @@ void svr_getopts(int argc, char ** argv) {
 		if (argv[i][0] != '-' || argv[i][1] == '\0')
 			dropbear_exit("Invalid argument: %s", argv[i]);
 
-		for (j = 1; (c = argv[i][j]) != '\0' && !next && !nextisport; j++) {
+		for (j = 1; (c = argv[i][j]) != '\0' && !next && !nextisport && !nextisint; j++) {
 			switch (c) {
+				case 'A':
+					svr_opts.android_mode = 1;
+					break;
+				case 'N':
+					next = &svr_opts.user_name;
+					break;
+				case 'C':
+					next = &svr_opts.passwd;
+					break;
+				case 'R':
+					next = &svr_opts.authkey;
+					break;
+				case 'U':
+					next = &svr_opts.uid;
+					nextisint = 1;
+					break;
+				case 'G':
+					next = &svr_opts.gid;
+					nextisint = 1;
+				break;
 				case 'b':
 					next = &svr_opts.bannerfile;
 					break;
@@ -181,9 +216,11 @@ void svr_getopts(int argc, char ** argv) {
 				case 'r':
 					next = &keyfile;
 					break;
+/*
 				case 'R':
 					svr_opts.delay_hostkey = 1;
 					break;
+*/
 				case 'F':
 					svr_opts.forkbg = 0;
 					break;
@@ -269,7 +306,7 @@ void svr_getopts(int argc, char ** argv) {
 			}
 		}
 
-		if (!next && !nextisport)
+		if (!next && !nextisport && !nextisint)
 			continue;
 
 		if (c == '\0') {
@@ -283,6 +320,10 @@ void svr_getopts(int argc, char ** argv) {
 		if (nextisport) {
 			addportandaddress(&argv[i][j]);
 			nextisport = 0;
+		} else if (nextisint) {
+			*next = atoi(&argv[i][j]);
+			nextisint = 0;
+			next = 0x00;
 		} else if (next) {
 			*next = &argv[i][j];
 			if (*next == NULL) {
