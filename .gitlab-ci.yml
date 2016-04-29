@@ -1,0 +1,40 @@
+# http://doc.gitlab.com/ce/ci/yaml/README.html
+# https://hub.docker.com/_/debian/
+# http://releases.linaro.org/components/toolchain/binaries/
+
+image: debian:latest
+
+variables:
+  PUBLIC: "public"
+
+.toolchain: &toolchain
+  variables:
+    LINAROVER: "5.3-2016.02"
+    TCDIR: "${CI_PROJECT_DIR}/../gcc-linaro-${LINAROVER}-x86_64_arm-linux-gnueabi/bin"
+    TCPRF: "arm-linux-gnueabi-"
+    TCARCH: "arm-eabi"
+  before_script:
+    - apt-get --quiet update --yes
+    - apt-get --quiet install --yes wget xz-utils autoconf make binutils
+    - wget --quiet --output-document=- "http://releases.linaro.org/components/toolchain/binaries/${LINAROVER}/arm-linux-gnueabi/gcc-linaro-${LINAROVER}-x86_64_arm-linux-gnueabi.tar.xz" | tar --extract --xz -C .. && echo "Linaro ${LINAROVER} downloaded and extracted"
+    - NUMCPUS=$(grep -c '^processor\s' /proc/cpuinfo)
+    - export PATH="${PATH}:${TCDIR}"
+
+stages:
+  - build
+
+pages:
+  stage: build
+  only:
+    - rychly/master
+  <<: *toolchain
+  script:
+    - test -e ./configure || autoconf
+    - test -e ./config.h.in || autoheader
+    - ./configure --build=x86_64-unknown-linux-gnu "--host=${TCARCH}" --disable-zlib --disable-largefile --disable-loginfunc --disable-shadow --disable-utmp --disable-utmpx --disable-wtmp --disable-wtmpx --disable-pututline --disable-pututxline --disable-lastlog "CC=${TCPRF}gcc" "CFLAGS=-DANDROID -D__ANDROID__ -DSK_RELEASE -march=armv7-a -msoft-float -mfloat-abi=softfp -mfpu=neon -mthumb -mthumb-interwork -fpic -fno-short-enums -fgcse-after-reload -frename-registers -fuse-ld=bfd -DHAVE_BASENAME" "LDFLAGS=-Xlinker -z -Xlinker muldefs -Bdynamic -Xlinker -dynamic-linker -Xlinker /system/bin/linker -Xlinker -z -Xlinker nocopyreloc -Xlinker --no-undefined"
+    - make "--jobs=${NUMCPUS}" "--load-average=${NUMCPUS}" STATIC=1 MULTI=1 SCPPROGRESS=0 PROGRAMS="dropbear dropbearkey scp dbclient" "CC=${TCPRF}gcc" "STRIP=${TCPRF}strip" strip
+    - mkdir -p "${PUBLIC}"
+    - mv -v dropbearmulti "${PUBLIC}/"
+  artifacts:
+    paths:
+      - ${PUBLIC}
