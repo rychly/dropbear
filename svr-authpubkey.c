@@ -66,7 +66,7 @@
 #include "algo.h"
 #include "runopts.h"
 
-#ifdef ENABLE_SVR_PUBKEY_AUTH
+#if DROPBEAR_SVR_PUBKEY_AUTH
 
 #define MIN_AUTHKEYS_LINE 10 /* "ssh-rsa AB" - short but doesn't matter */
 #define MAX_AUTHKEYS_LINE 4200 /* max length of a line in authkeys */
