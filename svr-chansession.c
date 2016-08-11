@@ -972,7 +972,7 @@ static void execchild(void *user_data) {
 		addnewvar("ANDROID_ROOT", "/system");
 		addnewvar("BOOTCLASSPATH", "/system/framework/core.jar:/system/framework/ext.jar:/system/framework/framework.jar:/system/framework/android.policy.jar:/system/framework/services.jar");
 		addnewvar("EXTERNAL_STORAGE", "/sdcard");
-		addnewvar("LD_LIBRARY_PATH", "/vendor/lib:/system/lib");
+		addnewvar("LD_LIBRARY_PATH", "/vendor/lib:/vendor/lib64:/system/lib:/system/lib64");
 	} else
 	addnewvar("PATH", DEFAULT_PATH);
 	if (chansess->term != NULL) {
