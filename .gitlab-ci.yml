@@ -9,14 +9,14 @@ variables:
 
 .toolchain: &toolchain
   variables:
-    LINAROVER: "5.3-2016.02"
+    LINAROVER: "6.2.1-2016.11"
     TCDIR: "${CI_PROJECT_DIR}/../gcc-linaro-${LINAROVER}-x86_64_arm-linux-gnueabi/bin"
     TCPRF: "arm-linux-gnueabi-"
     TCARCH: "arm-eabi"
   before_script:
     - apt-get --quiet update --yes
     - apt-get --quiet install --yes wget xz-utils autoconf make binutils
-    - wget --quiet --output-document=- "http://releases.linaro.org/components/toolchain/binaries/${LINAROVER}/arm-linux-gnueabi/gcc-linaro-${LINAROVER}-x86_64_arm-linux-gnueabi.tar.xz" | tar --extract --xz -C .. && echo "Linaro ${LINAROVER} downloaded and extracted"
+    - wget --quiet --output-document=- "http://releases.linaro.org/components/toolchain/binaries/${LINAROVER/.?-/-}/arm-linux-gnueabi/gcc-linaro-${LINAROVER}-x86_64_arm-linux-gnueabi.tar.xz" | tar --extract --xz -C .. && echo "Linaro ${LINAROVER} downloaded and extracted"
     - NUMCPUS=$(grep -c '^processor\s' /proc/cpuinfo)
     - export PATH="${PATH}:${TCDIR}"
 

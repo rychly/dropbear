@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # required: dev-embedded/linaro-toolchain-arm-linux-gnueabi-bin
-TCDIR=/opt/linaro-toolchain-arm-linux-gnueabi-bin-5.3-2016.02/bin
+TCDIR=/opt/linaro-toolchain-arm-linux-gnueabi-bin-6.2.1-2016.11/bin
 TCPRF=arm-linux-gnueabi-
 # required: dev-embedded/sourcery-codebench-lite-arm_linux-gnueabi-bin
 #TCDIR=/opt/sourcery-codebench-lite-arm_linux-gnueabi-bin-r2795/bin
